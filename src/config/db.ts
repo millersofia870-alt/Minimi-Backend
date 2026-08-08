@@ -26,12 +26,36 @@ function parseDatabaseUrl(databaseUrl: string) {
   };
 }
 
+function getDatabaseConfig() {
+  if (env.databaseUrl) {
+    return parseDatabaseUrl(env.databaseUrl);
+  }
+
+  if (env.mysqlHost && env.mysqlUser && env.mysqlDatabase) {
+    return {
+      host: env.mysqlHost,
+      port: env.mysqlPort,
+      user: env.mysqlUser,
+      password: env.mysqlPassword,
+      database: env.mysqlDatabase,
+    };
+  }
+
+  return {
+    host: '127.0.0.1',
+    port: 3306,
+    user: 'minimi',
+    password: 'minimi_pw',
+    database: 'minimi_agri',
+  };
+}
+
 export async function initializeDatabase() {
   if (pool) {
     return pool;
   }
 
-  const { host, port, user, password, database } = parseDatabaseUrl(env.databaseUrl);
+  const { host, port, user, password, database } = getDatabaseConfig();
 
   const maxRetries = 10;
   const retryDelayMs = 3000;

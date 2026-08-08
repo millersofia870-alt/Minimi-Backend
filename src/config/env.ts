@@ -15,7 +15,14 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGIN),
-  databaseUrl: process.env.DATABASE_URL ?? 'mysql://minimi:minimi_pw@127.0.0.1:3306/minimi_agri',
+
+  databaseUrl: process.env.DATABASE_URL ?? '',
+
+  mysqlHost: process.env.MYSQLHOST ?? '',
+  mysqlPort: parseInt(process.env.MYSQLPORT ?? '3306', 10),
+  mysqlUser: process.env.MYSQLUSER ?? '',
+  mysqlPassword: process.env.MYSQLPASSWORD ?? '',
+  mysqlDatabase: process.env.MYSQLDATABASE ?? '',
 
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret-change-me',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-me',

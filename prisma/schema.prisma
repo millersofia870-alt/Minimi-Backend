@@ -1,0 +1,200 @@
+// Minimi Agri — Prisma schema
+//
+// Uses MySQL. Point DATABASE_URL at your MySQL instance, e.g.:
+// DATABASE_URL="mysql://user:password@localhost:3306/minimi_agri"
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "wasm"
+}
+
+model Farmer {
+  id        String   @id @default(cuid())
+  fullName  String
+  idNumber  String   @unique
+  phone     String   @unique
+  county    String
+  subCounty String
+  createdAt DateTime @default(now())
+
+  serviceRequests ServiceRequest[]
+  payments        Payment[]
+  subscriptions   FarmerSubscription[]
+}
+
+model Vet {
+  id        String   @id @default(cuid())
+  fullName  String
+  idNumber  String   @unique
+  phone     String   @unique
+  county    String
+  subCounty String
+  // pending_verification | approved | suspended
+  status    String   @default("pending_verification")
+  rating    Float?
+  createdAt DateTime @default(now())
+
+  serviceRequests ServiceRequest[]
+  captureImages   CaptureImage[]
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model ServiceRequest {
+  id               String    @id @default(cuid())
+  farmerId         String
+  farmer           Farmer    @relation(fields: [farmerId], references: [id])
+  vetId            String?
+  vet              Vet?      @relation(fields: [vetId], references: [id])
+  county           String
+  subCounty        String
+  description      String
+  animalOrCropType String
+  // pending | accepted | in_progress | completed | cancelled
+  status           String    @default("pending")
+  requestedAt      DateTime  @default(now())
+  acceptedAt       DateTime?
+  completedAt      DateTime?
+
+  chatMessages  ChatMessage[]
+  captureImages CaptureImage[]
+  payments      Payment[]
+
+  @@index([county, subCounty, status])
+  @@index([farmerId])
+  @@index([vetId])
+}
+
+// senderId/senderRole are plain fields rather than FK relations, since a
+// sender may be either a Farmer or a Vet (Prisma has no first-class
+// polymorphic relation) — the app layer resolves senderId against the
+// correct table using senderRole.
+model ChatMessage {
+  id         String    @id @default(cuid())
+  requestId  String
+  request    ServiceRequest @relation(fields: [requestId], references: [id])
+  senderRole String    // farmer | vet
+  senderId   String
+  message    String
+  mediaUrl   String?
+  sentAt     DateTime  @default(now())
+  readAt     DateTime?
+
+  @@index([requestId])
+}
+
+model CaptureImage {
+  id         String   @id @default(cuid())
+  requestId  String
+  request    ServiceRequest @relation(fields: [requestId], references: [id])
+  vetId      String
+  vet        Vet      @relation(fields: [vetId], references: [id])
+  farmerId   String
+  imageUrl   String
+  type       String   // livestock | crop
+  notes      String?
+  capturedAt DateTime @default(now())
+
+  @@index([requestId])
+}
+
+model Payment {
+  id                 String    @id @default(cuid())
+  requestId          String
+  request            ServiceRequest @relation(fields: [requestId], references: [id])
+  farmerId           String
+  farmer             Farmer    @relation(fields: [farmerId], references: [id])
+  amount             Float
+  mpesaReceiptNumber String?
+  phone              String
+  // pending | success | failed
+  status             String    @default("pending")
+  checkoutRequestId  String?   @unique
+  createdAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  @@index([requestId])
+  @@index([farmerId])
+}
+
+// userId/userRole: same polymorphic-by-convention pattern as ChatMessage.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  userRole  String   // farmer | vet | admin
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, userRole])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  userRole  String   // farmer | vet
+  codeHash  String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, userRole])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  userRole  String   // farmer | vet | admin
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, userRole])
+}
+
+model SubscriptionPackage {
+  id           String               @id @default(cuid())
+  name         String
+  description  String
+  price        Float
+  durationDays Int                  @default(30)
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  subscriptions FarmerSubscription[]
+}
+
+model FarmerSubscription {
+  id                String              @id @default(cuid())
+  farmerId          String
+  farmer            Farmer              @relation(fields: [farmerId], references: [id])
+  packageId         String
+  package           SubscriptionPackage @relation(fields: [packageId], references: [id])
+  amount            Float
+  durationDays      Int
+  startDate         DateTime?
+  endDate           DateTime?
+  // pending | active | expired | cancelled
+  status            String              @default("pending")
+  checkoutRequestId String?             @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([farmerId])
+  @@index([packageId])
+  @@index([status])
+}
+
